@@ -88,6 +88,7 @@ func main() {
 			"Your Atom editor version is: %s, use --help getting more information",
 			atom.currentVer(),
 		)
+		os.Exit(0)
 	}
 }
 
@@ -116,7 +117,7 @@ func (atom *Atom) currentVer() string {
 	stdout, err := cmd.Output()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	subMatched := regexHelperFunc(`^Atom\s+:\s+(\d+\.\d+\.\d+(?:-\w+\d+)?)`, stdout)
@@ -174,13 +175,13 @@ func downloadAtom(status chan string) {
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("Server return non-200 status: %v\n", resp.Status)
-		return
+		os.Exit(1)
 	}
 
 	dest, err := os.Create("/tmp/atom-amd64.deb")
 	if err != nil {
 		fmt.Printf("Can't create %s: %v\n", "/tmp/atom-amd64.deb", err)
-		return
+		os.Exit(1)
 	}
 	defer dest.Close()
 
