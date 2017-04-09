@@ -7,7 +7,7 @@ A cli tool for updating [Atom](https://atom.io/). Mainly for `.deb` extension.
 ## Install
 
 ```sh
-go get https://github.com/neighborhood999/gau
+go get github.com/neighborhood999/gau
 ```
 
 ## Usage
