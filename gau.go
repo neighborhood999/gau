@@ -1,8 +1,6 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,57 +10,48 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-
+	"github.com/docopt/docopt-go"
 	pb "gopkg.in/cheggaaa/pb.v1"
 )
 
-// Atom :
+// Atom representation current and the latest editor version
 type Atom struct {
-	currentVersion string
-	latestVersion  string
+	version       string
+	latestVersion string
 }
 
-const releasesPage = "https://github.com/atom/atom/releases/latest"
-const tempFolder = "/tmp/latest"
+const fileName = "atom-amd64.deb"
+const latestReleases = "https://github.com/atom/atom/releases/latest"
+const githubReleasesPage = "https://github.com/atom/atom/releases/download/v"
+const usage = `
+	Usage:
+		gau --latest | Get the latest atom version
+		gau --upgrade | Upgrade atom editor
+		gau --help | Help`
 
 var atom Atom
-var gihub = "https://github.com/atom/atom/releases/download/v"
-
-var help = flag.Bool("help", false, "How to use")
-var latest = flag.Bool("latest", false, "Latest stable version")
-var update = flag.Bool("update", false, "Update atom editor")
-
-func init() {
-	flag.Parse()
-}
 
 func main() {
-	switch {
-	case *help:
-		fmt.Print(
-			"USAGE:\n",
-			"  gau command",
-			"\n",
-			"COMMANDS:\n",
-			"  --help How to use gau for updating atom\n",
-			"  --latest Latest stable version\n",
-			"  --update Update to latest stable version",
-		)
-	case *latest:
-		checkUpdate := atom.currentStatus()
-		if checkUpdate == 1 {
-			fmt.Println("Running `gau --update` for the update.")
-		}
-	case *update:
-		checkUpdate := atom.currentStatus()
+	args, err := docopt.Parse(usage, nil, true, "0.0.5", false)
+	if err != nil {
+		log.Fatalf("error: %s", err)
+	}
 
-		if checkUpdate == 1 {
+	switch {
+	case args["--latest"].(bool):
+		if checkUpdate := atom.currentStatus(); checkUpdate {
+			log.Println("Executing `gau --upgrade` for upgrade.")
+		}
+
+		os.Exit(0)
+	case args["--upgrade"].(bool):
+		if checkUpdate := atom.currentStatus(); checkUpdate {
 			downloadStatus := make(chan string)
 			installStatus := make(chan bool)
 
-			fmt.Println("Downloading .deb file...")
+			log.Println("Downloading .deb file...")
 			go downloadAtom(downloadStatus)
-			fmt.Printf("\n%s\n", <-downloadStatus)
+			log.Printf("\n%s\n", <-downloadStatus)
 
 			s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 
@@ -72,47 +61,42 @@ func main() {
 			s.Start()
 
 			if !<-installStatus {
-				s.FinalMSG = "Check above Error message！"
+				s.FinalMSG = "🚨 Check error message！"
 				s.Stop()
-				os.Exit(0)
+				os.Exit(1)
 			}
 
-			s.FinalMSG = "Complete！Successful installed."
+			s.FinalMSG = "Success installation 🎉"
 			s.Stop()
 			os.Exit(0)
 		}
 
 		os.Exit(0)
-	default:
-		fmt.Printf(
-			"Your Atom editor version is: %s, use --help getting more information",
-			atom.currentVer(),
-		)
-		os.Exit(0)
 	}
 }
 
-func (atom *Atom) currentStatus() int {
-	if atom.currentVersion == "" || atom.latestVersion == "" {
-		atom.currentVer()
-		atom.getLatestStableVersion()
+func (atom *Atom) currentStatus() bool {
+	atom.getVersion()
+	atom.getLatestStableVersion()
+
+	if atom.version == atom.latestVersion {
+		log.Printf(
+			"Your Atom is the latest \033[1m%s\033[m version!  ✔️",
+			atom.latestVersion,
+		)
+		return false
 	}
 
-	if atom.currentVersion == atom.latestVersion {
-		fmt.Println("Your Atom Editor is latest! 😉")
-		return 0
-	}
-
-	fmt.Printf(
-		"Your atom version is: %s, the latest stable version is: %s.\n\n",
-		atom.currentVersion,
+	log.Printf(
+		"Your version: \033[1m%s\033[m, the latest stable version: \033[1m%s\033[m.\n",
+		atom.version,
 		atom.latestVersion,
 	)
 
-	return 1
+	return true
 }
 
-func (atom *Atom) currentVer() string {
+func (atom *Atom) getVersion() {
 	cmd := exec.Command("atom", "--version")
 	stdout, err := cmd.Output()
 
@@ -121,26 +105,28 @@ func (atom *Atom) currentVer() string {
 	}
 
 	subMatched := regexHelperFunc(`^Atom\s+:\s+(\d+\.\d+\.\d+(?:-\w+\d+)?)`, stdout)
-	atom.currentVersion = subMatched[1]
-
-	return atom.currentVersion
+	atom.version = subMatched[1]
 }
 
-func (atom *Atom) getLatestStableVersion() string {
-	resp, err := http.Get(releasesPage)
+func (atom *Atom) getLatestStableVersion() {
+	response, err := http.Get(latestReleases)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
-	dest, err := os.Create("/tmp/latest")
+	dest, err := os.Create("/tmp/atom-release-page")
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer dest.Close()
-	io.Copy(dest, resp.Body)
+	io.Copy(dest, response.Body)
 
-	cmd := exec.Command("/bin/sh", "-c", `cat /tmp/latest | grep -o -E 'href="([^"#]+)atom-amd64.deb"' | cut -d'"' -f2 | sort | uniq`)
+	cmd := exec.Command(
+		"/bin/sh",
+		"-c",
+		`cat /tmp/latest | grep -o -E 'href="([^"#]+)atom-amd64.deb"' | cut -d'"' -f2 | sort | uniq`,
+	)
 	stdout, err := cmd.Output()
 
 	if err != nil {
@@ -150,7 +136,7 @@ func (atom *Atom) getLatestStableVersion() string {
 	subMatched := regexHelperFunc(`\d+.\d+.\d+`, stdout)
 	atom.latestVersion = subMatched[0]
 
-	return atom.latestVersion
+	// return atom.latestVersion
 }
 
 func regexHelperFunc(regex string, stdout []byte) []string {
@@ -161,35 +147,33 @@ func regexHelperFunc(regex string, stdout []byte) []string {
 }
 
 func downloadAtom(status chan string) {
-	if atom.latestVersion == "" {
-		atom.getLatestStableVersion()
-	}
+	atom.getLatestStableVersion()
 
-	latest := gihub + atom.latestVersion + "/atom-amd64.deb"
+	latest := githubReleasesPage + atom.latestVersion + fileName
 
-	resp, err := http.Get(latest)
+	response, err := http.Get(latest)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Server return non-200 status: %v\n", resp.Status)
+	if response.StatusCode != http.StatusOK {
+		log.Printf("Server return non-200 status: %v\n", response.Status)
 		os.Exit(1)
 	}
 
 	dest, err := os.Create("/tmp/atom-amd64.deb")
 	if err != nil {
-		fmt.Printf("Can't create %s: %v\n", "/tmp/atom-amd64.deb", err)
+		log.Printf("Can't create %s: %v\n", "/tmp/atom-amd64.deb", err)
 		os.Exit(1)
 	}
 	defer dest.Close()
 
-	bar := pb.New(int(resp.ContentLength)).SetUnits(pb.U_BYTES)
+	bar := pb.New(int(response.ContentLength)).SetUnits(pb.U_BYTES)
 	bar.ShowSpeed = true
 	bar.Start()
 
-	reader := bar.NewProxyReader(resp.Body)
+	reader := bar.NewProxyReader(response.Body)
 
 	io.Copy(dest, reader)
 	bar.Finish()
@@ -204,10 +188,10 @@ func install(status chan bool) {
 	isSuccess := cmd.ProcessState.Success()
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		status <- isSuccess
 	}
 
-	fmt.Println(string(out))
+	log.Println(string(out))
 	status <- isSuccess
 }
