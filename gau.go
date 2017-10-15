@@ -39,13 +39,13 @@ func main() {
 
 	switch {
 	case args["--latest"].(bool):
-		if checkUpdate := atom.currentStatus(); checkUpdate {
+		if status := atom.checkLatestVersion(); status {
 			log.Println("Executing `gau --upgrade` for upgrade.")
 		}
 
 		os.Exit(0)
 	case args["--upgrade"].(bool):
-		if checkUpdate := atom.currentStatus(); checkUpdate {
+		if status := atom.checkLatestVersion(); status {
 			downloadStatus := make(chan string)
 			installStatus := make(chan bool)
 
@@ -75,7 +75,7 @@ func main() {
 	}
 }
 
-func (atom *Atom) currentStatus() bool {
+func (atom *Atom) checkLatestVersion() bool {
 	atom.getVersion()
 	atom.getLatestStableVersion()
 
@@ -135,8 +135,6 @@ func (atom *Atom) getLatestStableVersion() {
 
 	subMatched := regexHelperFunc(`\d+.\d+.\d+`, stdout)
 	atom.latestVersion = subMatched[0]
-
-	// return atom.latestVersion
 }
 
 func regexHelperFunc(regex string, stdout []byte) []string {
