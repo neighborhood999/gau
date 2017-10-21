@@ -125,7 +125,7 @@ func (atom *Atom) getLatestStableVersion() {
 	cmd := exec.Command(
 		"/bin/sh",
 		"-c",
-		`cat /tmp/latest | grep -o -E 'href="([^"#]+)atom-amd64.deb"' | cut -d'"' -f2 | sort | uniq`,
+		`cat /tmp/atom-release-page | grep -o -E 'href="([^"#]+)atom-amd64.deb"' | cut -d'"' -f2 | sort | uniq`,
 	)
 	stdout, err := cmd.Output()
 
