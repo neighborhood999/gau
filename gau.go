@@ -147,7 +147,7 @@ func regexHelperFunc(regex string, stdout []byte) []string {
 func downloadAtom(status chan string) {
 	atom.getLatestStableVersion()
 
-	latest := githubReleasesPage + atom.latestVersion + fileName
+	latest := githubReleasesPage + atom.latestVersion + "/" + fileName
 
 	response, err := http.Get(latest)
 	if err != nil {
