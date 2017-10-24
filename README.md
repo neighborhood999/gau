@@ -18,9 +18,9 @@ $ gau [options]
 
 ## Options
 
+- **--latest** Get the latest atom version
+- **--upgrade** Download and install atom editor
 - **--help** How to use gau for updating atom
-- **--latest** Latest stable version
-- **--update** Update to latest stable version
 
 ## Build
 

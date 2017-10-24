@@ -24,10 +24,11 @@ const fileName = "atom-amd64.deb"
 const latestReleases = "https://github.com/atom/atom/releases/latest"
 const githubReleasesPage = "https://github.com/atom/atom/releases/download/v"
 const usage = `
-	Usage:
-		gau --latest | Get the latest atom version
-		gau --upgrade | Upgrade atom editor
-		gau --help | Help`
+Usage:
+	gau --latest | Get the latest atom version
+	gau --upgrade | Download and install atom editor
+	gau --help | Help
+`
 
 var atom Atom
 
@@ -66,7 +67,7 @@ func main() {
 				os.Exit(1)
 			}
 
-			s.FinalMSG = "Success installation 🎉"
+			s.FinalMSG = "Success installation ！🎉"
 			s.Stop()
 			os.Exit(0)
 		}
